@@ -1,0 +1,146 @@
+IMAGE FORENSICS CTF CREATION GUIDE (.dd FILE)
+
+--------------------------------------------------
+OVERVIEW
+--------------------------------------------------
+
+This challenge simulates a digital forensics investigation where a user deletes an image file from a storage device. The goal is to recover the deleted image and extract a hidden flag from its metadata.
+
+The flag is embedded inside the image metadata using ExifTool, and the image is deleted from a disk image so it must be recovered using forensic techniques.
+
+--------------------------------------------------
+STEP 1: SETUP WORKING DIRECTORY
+--------------------------------------------------
+
+cd ~
+rm -rf ctf_lab
+mkdir ctf_lab
+cd ctf_lab
+
+--------------------------------------------------
+STEP 2: ADD IMAGE FILE
+--------------------------------------------------
+
+cp /path/to/drunk_cat.jpg cat.jpg
+
+--------------------------------------------------
+STEP 3: EMBED FLAG IN IMAGE METADATA
+--------------------------------------------------
+
+Install exiftool if not installed:
+
+brew install exiftool
+
+Add flag:
+
+exiftool -Comment="FLAG{Drunk_cat_is_here}" cat.jpg
+
+Remove backup file:
+
+rm cat.jpg_original
+
+Verify:
+
+exiftool cat.jpg | grep -i comment
+
+Expected output:
+Comment : FLAG{Drunk_cat_is_here}
+
+--------------------------------------------------
+STEP 4: CREATE DISK IMAGE
+--------------------------------------------------
+
+Create disk:
+
+hdiutil create -size 300m -fs HFS+ -volname CTF ctf.dmg
+
+Convert to raw format:
+
+hdiutil convert ctf.dmg -format UDRW -o ctf_raw
+
+Output:
+ctf_raw.dmg
+
+--------------------------------------------------
+STEP 5: MOUNT DISK IMAGE
+--------------------------------------------------
+
+hdiutil attach ctf_raw.dmg
+
+Mount point:
+/Volumes/CTF
+
+--------------------------------------------------
+STEP 6: COPY FILES INTO DISK
+--------------------------------------------------
+
+cp cat.jpg /Volumes/CTF/
+echo "Quarterly report draft" > /Volumes/CTF/report.txt
+echo "Images may contain more than pixels..." > /Volumes/CTF/hint.txt
+
+--------------------------------------------------
+STEP 7: DELETE IMAGE (FORENSIC ARTIFACT)
+--------------------------------------------------
+
+rm /Volumes/CTF/cat.jpg
+
+This simulates user deleting evidence.
+
+--------------------------------------------------
+STEP 8: UNMOUNT DISK
+--------------------------------------------------
+
+sync
+hdiutil detach /Volumes/CTF
+
+--------------------------------------------------
+STEP 9: CREATE FINAL FORENSIC FILE
+--------------------------------------------------
+
+mv ctf_raw.dmg final.dd
+
+Optional compression:
+
+xz -z final.dd
+
+Final file:
+final.dd OR final.dd.xz
+
+--------------------------------------------------
+HOW IT IS SOLVED
+--------------------------------------------------
+
+1. Decompress:
+
+xz -d final.dd.xz
+
+2. Inspect partitions:
+
+mmls final.dd
+
+3. Carve deleted files:
+
+foremost -i final.dd -o output
+
+4. Go to recovered images:
+
+cd output/jpg
+
+5. Extract metadata:
+
+exiftool *.jpg
+
+--------------------------------------------------
+FINAL FLAG
+--------------------------------------------------
+
+FLAG{Drunk_cat_is_here}
+
+--------------------------------------------------
+SKILLS USED
+--------------------------------------------------
+
+- Disk forensics
+- File carving
+- Metadata analysis
+- Evidence recovery

@@ -1,0 +1,153 @@
+PCAP FORENSICS CTF CREATION GUIDE
+
+--------------------------------------------------
+OVERVIEW
+--------------------------------------------------
+
+This challenge simulates a network forensic investigation. A compromised machine communicates with an attacker and sends hidden data over HTTP.
+
+The flag is encoded using base64 and hidden inside an HTTP POST request.
+
+--------------------------------------------------
+STEP 1: SETUP DIRECTORY
+--------------------------------------------------
+
+cd ~
+mkdir pcap_ctf
+cd pcap_ctf
+
+--------------------------------------------------
+STEP 2: INSTALL REQUIRED TOOL
+--------------------------------------------------
+
+pip install scapy
+
+--------------------------------------------------
+STEP 3: CREATE PCAP GENERATOR SCRIPT
+--------------------------------------------------
+
+Create file:
+
+nano generate_pcap.py
+
+--------------------------------------------------
+FULL SCRIPT
+--------------------------------------------------
+
+from scapy.all import *
+import base64
+
+packets = []
+
+victim = "192.168.10.5"
+employee = "192.168.10.8"
+dns_server = "8.8.8.8"
+attacker_ip = "10.0.0.66"
+
+# Normal traffic
+packets.append(IP(src=victim, dst="142.250.72.14")/TCP(dport=80)/Raw(load="GET /index.html HTTP/1.1"))
+packets.append(IP(src=employee, dst="151.101.1.69")/TCP(dport=80)/Raw(load="GET /news HTTP/1.1"))
+
+# Internal communication
+packets.append(IP(src=employee, dst=victim)/TCP(dport=5000)/Raw(load="Hey, your system is acting weird?"))
+packets.append(IP(src=victim, dst=employee)/TCP(dport=5000)/Raw(load="Yeah, I didn't send anything!"))
+
+# Suspicious DNS
+packets.append(IP(src=victim, dst=dns_server)/UDP(dport=53)/DNS(rd=1, qd=DNSQR(qname="sync-checker-update.com")))
+
+# Hidden flag
+flag = "FLAG{network_forensics_case}"
+encoded_flag = base64.b64encode(flag.encode()).decode()
+
+packets.append(
+    IP(src=victim, dst=attacker_ip)/
+    TCP(dport=80)/
+    Raw(load=f"POST /upload HTTP/1.1\r\n\r\n{encoded_flag}")
+)
+
+# Beacon traffic
+for i in range(3):
+    packets.append(IP(src=victim, dst=attacker_ip)/TCP(dport=80)/Raw(load="PING"))
+
+# Noise traffic
+for i in range(5):
+    packets.append(IP(src="192.168.10.20", dst="192.168.10.30")/TCP(dport=443)/Raw(load="TLS DATA"))
+
+wrpcap("challenge.pcap", packets)
+
+--------------------------------------------------
+STEP 4: RUN SCRIPT
+--------------------------------------------------
+
+python3 generate_pcap.py
+
+Output:
+challenge.pcap
+
+--------------------------------------------------
+HOW IT IS SOLVED
+--------------------------------------------------
+
+1. Open PCAP:
+
+open -a Wireshark challenge.pcap
+
+OR
+
+tshark -r challenge.pcap
+
+--------------------------------------------------
+STEP 1: FIND SUSPICIOUS HOST
+--------------------------------------------------
+
+Look at conversations:
+192.168.10.5 → 10.0.0.66
+
+Compromised host:
+192.168.10.5
+
+--------------------------------------------------
+STEP 2: FIND DNS DOMAIN
+--------------------------------------------------
+
+Filter:
+dns
+
+Domain:
+sync-checker-update.com
+
+--------------------------------------------------
+STEP 3: FIND HIDDEN DATA
+--------------------------------------------------
+
+Filter:
+http
+
+Follow TCP stream.
+
+You will see base64 data:
+
+RkxBR3tuZXR3b3JrX2ZvcmVuc2ljc19jYXNlfQ==
+
+--------------------------------------------------
+STEP 4: DECODE FLAG
+--------------------------------------------------
+
+echo "RkxBR3tuZXR3b3JrX2ZvcmVuc2ljc19jYXNlfQ==" | base64 -d
+
+--------------------------------------------------
+FINAL FLAG
+--------------------------------------------------
+
+FLAG{network_forensics_case}
+
+--------------------------------------------------
+SKILLS USED
+--------------------------------------------------
+
+- Network forensics
+- Packet analysis
+- DNS investigation
+- HTTP analysis
+- Base64 decoding
+- Incident investigation
