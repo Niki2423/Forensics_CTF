@@ -3,3 +3,6 @@ output/
 *.pyc
 __pycache__/
 *.dd
+work/
+.Rhistory
+~$*

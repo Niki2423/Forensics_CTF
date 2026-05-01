@@ -1,0 +1,12 @@
+.git
+.DS_Store
+**/.DS_Store
+**/.Rhistory
+work/
+screenshots/
+Image_ctf/final.dd
+Image_ctf/output/
+*.docx
+~$*
+__pycache__/
+*.pyc
